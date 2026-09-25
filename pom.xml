@@ -9,6 +9,15 @@
     <version>1.0.0-SNAPSHOT</version>
     <name>Jandex Reader</name>
     <description>Command line tool to inspect Jandex indexes in JAR files and Maven artifacts</description>
+    <url>https://github.com/mcollovati/jandex-reader</url>
+
+    <licenses>
+        <license>
+            <name>Apache-2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>

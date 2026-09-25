@@ -107,3 +107,7 @@ jandex-reader implementors -i jakarta.ws.rs.core.Feature --pom .
 # JSON for scripting
 jandex-reader check --json --pom . | jq -r '.[] | select(.indexed | not) | .source'
 ```
+
+## License
+
+[Apache License 2.0](LICENSE)
