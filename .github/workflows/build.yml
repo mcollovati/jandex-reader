@@ -53,11 +53,12 @@ jobs:
           cp target/*-runner.jar jandex-reader.jar
           java -jar jandex-reader.jar --version
 
+      # uploaded as-is (not zipped): the artifact is named after the file
       - uses: actions/upload-artifact@v7
         if: github.event_name == 'workflow_dispatch'
         with:
-          name: jandex-reader-jvm
           path: jandex-reader.jar
+          archive: false
           if-no-files-found: error
 
   native:
@@ -124,8 +125,9 @@ jobs:
           fi
           echo "archive=$archive" >> "$GITHUB_OUTPUT"
 
+      # uploaded as-is, not zipped again: the artifact is named after the .tar.gz/.zip file
       - uses: actions/upload-artifact@v7
         with:
-          name: jandex-reader-${{ matrix.platform }}
           path: ${{ steps.package.outputs.archive }}
+          archive: false
           if-no-files-found: error
