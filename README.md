@@ -45,6 +45,9 @@ tag name, with no `v` prefix. The workflow:
    JReleaser creates the tag on the built commit and writes a changelog of the commits since the
    previous tag. Versions with a suffix are marked as pre-releases.
 
+Tick *Dry run* (or add `-f dry-run=true`) to go through all of the above without creating the tag or
+the release. The run summary then shows the files and the changelog the release would have.
+
 The version in `pom.xml` on `main` stays a `-SNAPSHOT`; the release sets its version only in the build.
 
 ## Build

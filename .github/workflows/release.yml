@@ -1,4 +1,5 @@
 name: Release
+run-name: Release ${{ inputs.version }}${{ inputs.dry-run && ' (dry run)' || '' }}
 
 on:
   workflow_dispatch:
@@ -7,6 +8,10 @@ on:
         description: Version to release, also used as tag name (e.g. 1.0.0 or 1.1.0-rc1, no 'v' prefix)
         type: string
         required: true
+      dry-run:
+        description: Dry run (build and test everything, but create no tag and no release)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -77,11 +82,28 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: mvn versions:set -DnewVersion="$VERSION"
 
-      # creates the tag on the built commit and the GitHub release
+      # creates the tag on the built commit and the GitHub release (nothing is published in a dry run)
       - name: Release with JReleaser
         env:
           JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mvn jreleaser:full-release
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: mvn jreleaser:full-release -Djreleaser.dry.run="$DRY_RUN"
+
+      - name: Dry run summary
+        if: inputs.dry-run
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          {
+            echo "## Dry run of release $VERSION"
+            echo
+            echo "No tag or release was created. The release would contain:"
+            echo
+            for file in artifacts/*; do echo "- \`${file#artifacts/}\`"; done
+            echo "- \`checksums_sha256.txt\`"
+            echo
+            cat target/jreleaser/release/CHANGELOG.md
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: JReleaser output
         if: always()
@@ -91,3 +113,4 @@ jobs:
           path: |
             target/jreleaser/trace.log
             target/jreleaser/output.properties
+            target/jreleaser/release/CHANGELOG.md
