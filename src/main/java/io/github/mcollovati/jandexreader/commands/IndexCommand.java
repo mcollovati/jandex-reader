@@ -6,14 +6,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import io.github.mcollovati.jandexreader.ToolException;
 import io.github.mcollovati.jandexreader.source.IndexLoader;
 import io.github.mcollovati.jandexreader.source.LoadedIndex;
 import io.github.mcollovati.jandexreader.source.MavenResolver;
 import io.github.mcollovati.jandexreader.source.ResolvedSource;
 import io.github.mcollovati.jandexreader.source.SourceResolver;
+import io.github.mcollovati.jandexreader.support.Json;
 import org.jboss.jandex.CompositeIndex;
 import org.jboss.jandex.IndexView;
 import picocli.CommandLine.Model.CommandSpec;
@@ -143,8 +142,7 @@ public abstract class IndexCommand implements Callable<Integer> {
         return spec.commandLine().getErr();
     }
 
-    protected void printJson(Object value) throws Exception {
-        ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
-        out().println(mapper.writeValueAsString(value));
+    protected void printJson(Object value) {
+        out().println(Json.write(value));
     }
 }

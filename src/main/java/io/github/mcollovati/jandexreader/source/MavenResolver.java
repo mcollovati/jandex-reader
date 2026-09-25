@@ -2,26 +2,19 @@ package io.github.mcollovati.jandexreader.source;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.xml.parsers.DocumentBuilderFactory;
-
 import io.github.mcollovati.jandexreader.ToolException;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NodeList;
 
 /**
  * Minimal Maven artifact resolver: looks into the local repository first, then downloads the single
@@ -32,12 +25,12 @@ public class MavenResolver {
     public static final String MAVEN_CENTRAL = "https://repo.maven.apache.org/maven2";
 
     private static final Pattern COORDINATES = Pattern.compile("[\\w.\\-]+(:[\\w.\\-]*){1,4}");
+    private static final Pattern SNAPSHOT_VERSION = Pattern.compile("<snapshotVersion>(.*?)</snapshotVersion>", Pattern.DOTALL);
 
     private final Path localRepository;
     private final Path cacheDirectory;
     private final List<String> remoteRepositories;
     private final boolean offline;
-    private HttpClient httpClient;
 
     public MavenResolver(Path localRepository, Path cacheDirectory, List<String> remoteRepositories, boolean offline) {
         this.localRepository = localRepository;
@@ -106,9 +99,9 @@ public class MavenResolver {
                 localRepository.resolve(metadataPath + "-central.xml"));
         if (!offline) {
             for (String repository : remoteRepositories) {
-                Optional<Document> document = fetchXml(repository + "/" + metadataPath + ".xml");
-                Optional<String> release = document.flatMap(d -> firstText(d.getDocumentElement(), "release"))
-                        .or(() -> document.flatMap(d -> firstText(d.getDocumentElement(), "latest")));
+                Optional<String> metadata = fetch(repository + "/" + metadataPath + ".xml");
+                Optional<String> release = metadata.flatMap(xml -> firstText(xml, "release"))
+                        .or(() -> metadata.flatMap(xml -> firstText(xml, "latest")));
                 if (release.isPresent()) {
                     return release.get();
                 }
@@ -116,12 +109,12 @@ public class MavenResolver {
         }
         for (Path candidate : candidates) {
             if (Files.isRegularFile(candidate)) {
-                try (InputStream in = Files.newInputStream(candidate)) {
-                    Optional<String> release = firstText(parse(in).getDocumentElement(), "release");
+                try {
+                    Optional<String> release = firstText(Files.readString(candidate), "release");
                     if (release.isPresent()) {
                         return release.get();
                     }
-                } catch (Exception e) {
+                } catch (IOException e) {
                     // ignore unreadable local metadata
                 }
             }
@@ -131,22 +124,21 @@ public class MavenResolver {
     }
 
     private Optional<String> snapshotVersion(String repository, Artifact artifact) {
-        Optional<Document> document = fetchXml(repository + "/" + artifact.directory() + "/maven-metadata.xml");
-        if (document.isEmpty()) {
+        Optional<String> metadata = fetch(repository + "/" + artifact.directory() + "/maven-metadata.xml");
+        if (metadata.isEmpty()) {
             return Optional.empty();
         }
-        NodeList versions = document.get().getElementsByTagName("snapshotVersion");
-        for (int i = 0; i < versions.getLength(); i++) {
-            Element element = (Element) versions.item(i);
+        Matcher versions = SNAPSHOT_VERSION.matcher(metadata.get());
+        while (versions.find()) {
+            String element = versions.group(1);
             String extension = firstText(element, "extension").orElse("");
             String classifier = firstText(element, "classifier").orElse("");
             if (extension.equals(artifact.extension()) && classifier.equals(nullToEmpty(artifact.classifier()))) {
                 return firstText(element, "value");
             }
         }
-        Element root = document.get().getDocumentElement();
-        Optional<String> timestamp = firstText(root, "timestamp");
-        Optional<String> buildNumber = firstText(root, "buildNumber");
+        Optional<String> timestamp = firstText(metadata.get(), "timestamp");
+        Optional<String> buildNumber = firstText(metadata.get(), "buildNumber");
         if (timestamp.isPresent() && buildNumber.isPresent()) {
             return Optional.of(artifact.version().replace("SNAPSHOT", timestamp.get() + "-" + buildNumber.get()));
         }
@@ -155,79 +147,67 @@ public class MavenResolver {
 
     private boolean download(String url, Path target) {
         try {
-            HttpResponse<InputStream> response = client().send(request(url), HttpResponse.BodyHandlers.ofInputStream());
-            try (InputStream body = response.body()) {
-                if (response.statusCode() != 200) {
+            HttpURLConnection connection = open(url);
+            try {
+                if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
                     return false;
                 }
                 Files.createDirectories(target.getParent());
                 Path temp = Files.createTempFile(target.getParent(), target.getFileName().toString(), ".part");
-                try {
+                try (InputStream body = connection.getInputStream()) {
                     Files.copy(body, temp, StandardCopyOption.REPLACE_EXISTING);
                     Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
                 } finally {
                     Files.deleteIfExists(temp);
                 }
                 return true;
+            } finally {
+                connection.disconnect();
             }
         } catch (IOException e) {
             throw new ToolException("Failed to download " + url + ": " + e, e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ToolException("Interrupted while downloading " + url, e);
         }
     }
 
-    private Optional<Document> fetchXml(String url) {
+    /**
+     * Downloads a small text file, such as {@code maven-metadata.xml}; empty when it does not exist.
+     */
+    private Optional<String> fetch(String url) {
         try {
-            HttpResponse<InputStream> response = client().send(request(url), HttpResponse.BodyHandlers.ofInputStream());
-            try (InputStream body = response.body()) {
-                if (response.statusCode() != 200) {
+            HttpURLConnection connection = open(url);
+            try {
+                if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
                     return Optional.empty();
                 }
-                return Optional.of(parse(body));
+                try (InputStream body = connection.getInputStream()) {
+                    return Optional.of(new String(body.readAllBytes(), StandardCharsets.UTF_8));
+                }
+            } finally {
+                connection.disconnect();
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ToolException("Interrupted while downloading " + url, e);
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw new ToolException("Failed to download " + url + ": " + e, e);
         }
     }
 
-    private static Document parse(InputStream in) throws Exception {
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-        factory.setXIncludeAware(false);
-        factory.setExpandEntityReferences(false);
-        return factory.newDocumentBuilder().parse(in);
+    /**
+     * Text of the first {@code <tag>} element. Maven metadata is simple, generated XML (no attributes
+     * on these elements, no CDATA or entities in versions), so a full XML parser is not needed; this
+     * keeps java.xml out of the native executable.
+     */
+    static Optional<String> firstText(String xml, String tag) {
+        Matcher matcher = Pattern.compile("<" + tag + ">\\s*([^<]*?)\\s*</" + tag + ">").matcher(xml);
+        return matcher.find() && !matcher.group(1).isEmpty() ? Optional.of(matcher.group(1)) : Optional.empty();
     }
 
-    private static Optional<String> firstText(Element parent, String tag) {
-        NodeList nodes = parent.getElementsByTagName(tag);
-        if (nodes.getLength() == 0) {
-            return Optional.empty();
-        }
-        String text = nodes.item(0).getTextContent();
-        return text == null || text.isBlank() ? Optional.empty() : Optional.of(text.trim());
-    }
-
-    private HttpRequest request(String url) {
-        return HttpRequest.newBuilder(URI.create(url))
-                .timeout(Duration.ofSeconds(60))
-                .header("User-Agent", "jandex-reader")
-                .GET()
-                .build();
-    }
-
-    private HttpClient client() {
-        if (httpClient == null) {
-            httpClient = HttpClient.newBuilder()
-                    .followRedirects(HttpClient.Redirect.NORMAL)
-                    .connectTimeout(Duration.ofSeconds(20))
-                    .build();
-        }
-        return httpClient;
+    // HttpURLConnection (java.base) instead of java.net.http keeps the native executable smaller
+    private static HttpURLConnection open(String url) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
+        connection.setConnectTimeout(20_000);
+        connection.setReadTimeout(60_000);
+        connection.setInstanceFollowRedirects(true);
+        connection.setRequestProperty("User-Agent", "jandex-reader");
+        return connection;
     }
 
     private static String stripTrailingSlash(String url) {
