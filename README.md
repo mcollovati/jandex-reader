@@ -18,7 +18,7 @@ nothing about Maven. This tool fills that gap.
 
 Each [release](https://github.com/mcollovati/jandex-reader/releases) has native executables for
 Linux (amd64, arm64), macOS (arm64, amd64) and Windows (amd64), plus a JVM uber-jar (Java 21+) and
-`SHA256SUMS`:
+`checksums_sha256.txt`:
 
 ```shell
 curl -sL https://github.com/mcollovati/jandex-reader/releases/latest/download/jandex-reader-linux-amd64.tar.gz \
@@ -29,9 +29,12 @@ curl -sL https://github.com/mcollovati/jandex-reader/releases/latest/download/ja
 The macOS binaries aren't signed. If Gatekeeper blocks one, run `xattr -d com.apple.quarantine jandex-reader`.
 
 Pushes and pull requests only run the JVM build and tests. Binaries are built when a `v*` tag is
-pushed (e.g. `git tag v1.0.0 && git push origin v1.0.0`), which publishes a release. Tags with a suffix
-such as `v1.1.0-rc1` are marked as pre-releases. To get binaries without releasing, start the *Build*
-workflow manually from the Actions tab and download them from the run's artifacts.
+pushed (e.g. `git tag v1.0.0 && git push origin v1.0.0`). The workflow then sets the Maven version
+from the tag and publishes the release with [JReleaser](https://jreleaser.org)
+(`mvn jreleaser:full-release`, configured in `jreleaser.yml`), including a changelog of the commits
+since the previous tag. Tags with a suffix such as `v1.1.0-rc1` are marked as pre-releases. To get
+binaries without releasing, start the *Build* workflow manually from the Actions tab and download them
+from the run's artifacts.
 
 ## Build
 

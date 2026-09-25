@@ -30,12 +30,12 @@ jobs:
           java-version: 21
           cache: maven
 
-      - name: Use tag as application version
+      - name: Set version from tag
         if: startsWith(github.ref, 'refs/tags/v')
-        run: echo "VERSION_ARGS=-Dquarkus.application.version=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+        run: mvn versions:set -DnewVersion="${GITHUB_REF_NAME#v}"
 
       - name: Build and test
-        run: mvn verify $VERSION_ARGS
+        run: mvn verify
 
       # Binaries are only published for releases (v* tags) and manual runs
       - name: Package
@@ -84,14 +84,14 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cache: maven
 
-      - name: Use tag as application version
+      - name: Set version from tag
         if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
-        run: echo "VERSION_ARGS=-Dquarkus.application.version=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+        run: mvn versions:set -DnewVersion="${GITHUB_REF_NAME#v}"
 
       - name: Build native executable and run integration tests
         shell: bash
-        run: mvn verify -Dnative ${{ matrix.build-args }} $VERSION_ARGS
+        run: mvn verify -Dnative ${{ matrix.build-args }}
 
       - name: Package
         id: package
@@ -119,30 +119,43 @@ jobs:
           if-no-files-found: error
 
   release:
-    name: GitHub release
+    name: Release
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [jvm, native]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
+        with:
+          # full history for the changelog
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      # jreleaser.yml expects the binaries in artifacts/
       - uses: actions/download-artifact@v8
         with:
-          path: dist
+          path: artifacts
           merge-multiple: true
 
-      - name: Checksums
-        working-directory: dist
-        run: sha256sum * > SHA256SUMS
+      - name: Set version from tag
+        run: mvn versions:set -DnewVersion="${GITHUB_REF_NAME#v}"
 
-      - name: Create release
+      - name: Release with JReleaser
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          prerelease=""
-          if [[ "$GITHUB_REF_NAME" == *-* ]]; then prerelease="--prerelease"; fi
-          gh release create "$GITHUB_REF_NAME" dist/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "$GITHUB_REF_NAME" \
-            --generate-notes \
-            $prerelease
+          JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: mvn jreleaser:full-release
+
+      - name: JReleaser output
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: jreleaser-output
+          path: |
+            target/jreleaser/trace.log
+            target/jreleaser/output.properties
