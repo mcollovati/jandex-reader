@@ -1,5 +1,21 @@
+/*
+ * Copyright 2026 Marco Collovati
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.github.mcollovati.jandexreader.source;
 
+import io.github.mcollovati.jandexreader.ToolException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -9,8 +25,6 @@ import java.util.List;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-
-import io.github.mcollovati.jandexreader.ToolException;
 import org.jboss.jandex.Index;
 import org.jboss.jandex.IndexReader;
 import org.jboss.jandex.Indexer;
@@ -21,9 +35,8 @@ import org.jboss.jandex.Indexer;
 public class IndexLoader {
 
     /** Locations where build tools put the index, in lookup order. */
-    public static final List<String> INDEX_LOCATIONS = List.of(
-            "META-INF/jandex.idx",
-            "WEB-INF/classes/META-INF/jandex.idx");
+    public static final List<String> INDEX_LOCATIONS =
+            List.of("META-INF/jandex.idx", "WEB-INF/classes/META-INF/jandex.idx");
 
     private final boolean buildIfMissing;
 
@@ -120,8 +133,6 @@ public class IndexLoader {
     }
 
     private static boolean isIndexableClass(String name) {
-        return name.endsWith(".class")
-                && !name.startsWith("META-INF/versions/")
-                && !name.endsWith("module-info.class");
+        return name.endsWith(".class") && !name.startsWith("META-INF/versions/") && !name.endsWith("module-info.class");
     }
 }

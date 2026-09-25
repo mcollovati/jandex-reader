@@ -1,12 +1,26 @@
+/*
+ * Copyright 2026 Marco Collovati
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.github.mcollovati.jandexreader.support;
 
+import io.github.mcollovati.jandexreader.ToolException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
-
-import io.github.mcollovati.jandexreader.ToolException;
 import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
 import org.jboss.jandex.IndexView;
@@ -17,8 +31,7 @@ import org.jboss.jandex.IndexView;
  */
 public final class Names {
 
-    private Names() {
-    }
+    private Names() {}
 
     /**
      * Finds a class that must be present in the index.
@@ -28,8 +41,8 @@ public final class Names {
         if (found != null) {
             return found;
         }
-        List<String> candidates = matching(index.getKnownClasses().stream().map(c -> c.name().toString()).toList(),
-                name);
+        List<String> candidates = matching(
+                index.getKnownClasses().stream().map(c -> c.name().toString()).toList(), name);
         if (candidates.size() == 1) {
             return index.getClassByName(DotName.createSimple(candidates.get(0)));
         }
@@ -61,7 +74,9 @@ public final class Names {
             return DotName.createSimple(normalized);
         }
         Set<String> known = annotationNames(index);
-        index.getKnownClasses().stream().filter(ClassInfo::isAnnotation).forEach(c -> known.add(c.name().toString()));
+        index.getKnownClasses().stream()
+                .filter(ClassInfo::isAnnotation)
+                .forEach(c -> known.add(c.name().toString()));
         return resolveAmong(known, normalized, "Annotation");
     }
 
@@ -106,8 +121,8 @@ public final class Names {
         if (candidates.isEmpty()) {
             return new ToolException(what + " not found in index: " + name);
         }
-        return new ToolException(what + " name '" + name + "' is ambiguous, candidates:\n  "
-                + String.join("\n  ", candidates));
+        return new ToolException(
+                what + " name '" + name + "' is ambiguous, candidates:\n  " + String.join("\n  ", candidates));
     }
 
     /**

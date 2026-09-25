@@ -1,9 +1,23 @@
+/*
+ * Copyright 2026 Marco Collovati
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.github.mcollovati.jandexreader.support;
 
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.AnnotationTarget;
 import org.jboss.jandex.AnnotationValue;
@@ -20,13 +34,12 @@ import org.jboss.jandex.TypeTarget;
  */
 public final class Format {
 
-    private static final int VISIBILITY_AND_BASIC = Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE
-            | Modifier.STATIC | Modifier.FINAL;
+    private static final int VISIBILITY_AND_BASIC =
+            Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE | Modifier.STATIC | Modifier.FINAL;
 
     private static final int ACC_VARARGS = 0x0080;
 
-    private Format() {
-    }
+    private Format() {}
 
     public static String kind(ClassInfo clazz) {
         if (clazz.isAnnotation()) {
@@ -121,7 +134,9 @@ public final class Format {
     public static String type(Type type) {
         return switch (type.kind()) {
             case TYPE_VARIABLE -> type.asTypeVariable().identifier();
-            case ARRAY -> type(type.asArrayType().elementType()) + "[]".repeat(type.asArrayType().deepDimensions());
+            case ARRAY ->
+                type(type.asArrayType().elementType())
+                        + "[]".repeat(type.asArrayType().deepDimensions());
             default -> type.toString();
         };
     }
@@ -131,7 +146,8 @@ public final class Format {
      */
     public static String erasure(Type type) {
         if (type.kind() == Type.Kind.ARRAY) {
-            return erasure(type.asArrayType().elementType()) + "[]".repeat(type.asArrayType().deepDimensions());
+            return erasure(type.asArrayType().elementType())
+                    + "[]".repeat(type.asArrayType().deepDimensions());
         }
         return type.name().toString();
     }
@@ -179,8 +195,8 @@ public final class Format {
             sb.append(" default ").append(value(method.defaultValue()));
         }
         if (!method.exceptions().isEmpty()) {
-            sb.append(" throws ").append(method.exceptions().stream().map(Format::type)
-                    .collect(Collectors.joining(", ")));
+            sb.append(" throws ")
+                    .append(method.exceptions().stream().map(Format::type).collect(Collectors.joining(", ")));
         }
         return sb.toString();
     }
@@ -197,8 +213,8 @@ public final class Format {
      * Short method reference, e.g. {@code of(java.lang.Object[])}.
      */
     public static String methodReference(MethodInfo method) {
-        return methodName(method) + method.parameterTypes().stream().map(Format::erasure)
-                .collect(Collectors.joining(",", "(", ")"));
+        return methodName(method)
+                + method.parameterTypes().stream().map(Format::erasure).collect(Collectors.joining(",", "(", ")"));
     }
 
     public static String fieldDeclaration(FieldInfo field) {
@@ -277,15 +293,18 @@ public final class Format {
         }
         return switch (target.kind()) {
             case CLASS -> target.asClass().name().toString();
-            case FIELD -> target.asField().declaringClass().name() + "." + target.asField().name();
+            case FIELD ->
+                target.asField().declaringClass().name() + "."
+                        + target.asField().name();
             case METHOD -> target.asMethod().declaringClass().name() + "#" + methodReference(target.asMethod());
             case METHOD_PARAMETER -> {
                 MethodParameterInfo parameter = target.asMethodParameter();
                 String name = parameter.name() != null ? " " + parameter.name() : "";
                 yield target(parameter.method()) + " parameter " + parameter.position() + name;
             }
-            case RECORD_COMPONENT -> target.asRecordComponent().declaringClass().name() + "."
-                    + target.asRecordComponent().name();
+            case RECORD_COMPONENT ->
+                target.asRecordComponent().declaringClass().name() + "."
+                        + target.asRecordComponent().name();
             case TYPE -> {
                 TypeTarget typeTarget = target.asType();
                 String where = switch (typeTarget.usage()) {

@@ -1,5 +1,23 @@
+/*
+ * Copyright 2026 Marco Collovati
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.github.mcollovati.jandexreader.commands;
 
+import io.github.mcollovati.jandexreader.source.LoadedIndex;
+import io.github.mcollovati.jandexreader.support.Names;
+import io.github.mcollovati.jandexreader.support.Table;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -8,10 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
-
-import io.github.mcollovati.jandexreader.source.LoadedIndex;
-import io.github.mcollovati.jandexreader.support.Names;
-import io.github.mcollovati.jandexreader.support.Table;
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.AnnotationTarget;
 import org.jboss.jandex.ClassInfo;
@@ -20,18 +34,27 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
-@Command(name = "annotations", mixinStandardHelpOptions = true,
+@Command(
+        name = "annotations",
+        mixinStandardHelpOptions = true,
         description = "Lists the annotation types used in the index, with usage counts per target kind.")
 public class AnnotationsCommand extends IndexCommand {
 
-    @Parameters(paramLabel = "<source>", arity = "0..*", description = "JAR, directory, .idx file or Maven coordinates.")
+    @Parameters(
+            paramLabel = "<source>",
+            arity = "0..*",
+            description = "JAR, directory, .idx file or Maven coordinates.")
     List<String> sources = new ArrayList<>();
 
-    @Option(names = {"-f", "--filter"}, paramLabel = "<pattern>",
+    @Option(
+            names = {"-f", "--filter"},
+            paramLabel = "<pattern>",
             description = "Only annotations whose name contains the text or matches the glob.")
     String filter;
 
-    @Option(names = {"-s", "--sort-by-count"}, description = "Sort by usage count, most used first.")
+    @Option(
+            names = {"-s", "--sort-by-count"},
+            description = "Sort by usage count, most used first.")
     boolean sortByCount;
 
     @Override
@@ -58,7 +81,8 @@ public class AnnotationsCommand extends IndexCommand {
         }
         List<Map.Entry<String, Map<AnnotationTarget.Kind, Integer>>> entries = new ArrayList<>(usages.entrySet());
         if (sortByCount) {
-            entries.sort(Comparator.comparing((Map.Entry<String, Map<AnnotationTarget.Kind, Integer>> e) -> total(e.getValue()))
+            entries.sort(Comparator.comparing(
+                            (Map.Entry<String, Map<AnnotationTarget.Kind, Integer>> e) -> total(e.getValue()))
                     .reversed());
         }
         if (json) {

@@ -1,17 +1,31 @@
+/*
+ * Copyright 2026 Marco Collovati
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.github.mcollovati.jandexreader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.test.junit.main.LaunchResult;
 import io.quarkus.test.junit.main.QuarkusMainLauncher;
 import io.quarkus.test.junit.main.QuarkusMainTest;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -68,10 +82,16 @@ class JandexReaderTest {
         LaunchResult result = launcher.launch("class", "Service", indexedJar.toString());
         assertEquals(0, result.exitCode(), result.getErrorOutput());
         String output = stdout(result);
-        assertTrue(output.contains("@io.github.mcollovati.jandexreader.fixtures.Fixtures$Marker(codes = {1, 2}, value = \"svc\")"), output);
+        assertTrue(
+                output.contains(
+                        "@io.github.mcollovati.jandexreader.fixtures.Fixtures$Marker(codes = {1, 2}, value = \"svc\")"),
+                output);
         assertTrue(output.contains("public static class " + PKG + "Service implements " + PKG + "Greeter {"), output);
         assertTrue(output.contains("private java.util.List<java.lang.@NotNull String> names"), output);
-        assertTrue(output.contains("protected <T extends java.lang.Number> T first(java.util.List<T> items, java.lang.String... rest)"), output);
+        assertTrue(
+                output.contains(
+                        "protected <T extends java.lang.Number> T first(java.util.List<T> items, java.lang.String... rest)"),
+                output);
     }
 
     @Test
@@ -84,7 +104,9 @@ class JandexReaderTest {
     @Test
     void methods_quiet(QuarkusMainLauncher launcher) {
         LaunchResult result = launcher.launch("methods", "-q", "Greeter", indexedJar.toString());
-        assertEquals("public java.lang.String greet(java.lang.String name)", stdout(result).strip());
+        assertEquals(
+                "public java.lang.String greet(java.lang.String name)",
+                stdout(result).strip());
     }
 
     @Test
@@ -98,9 +120,13 @@ class JandexReaderTest {
         LaunchResult result = launcher.launch("annotated", "Marker", indexedJar.toString());
         assertEquals(0, result.exitCode(), result.getErrorOutput());
         String output = stdout(result);
-        assertTrue(output.contains("parameter         " + PKG + "Greeter#greet(java.lang.String) parameter 0 name"), output);
+        assertTrue(
+                output.contains("parameter         " + PKG + "Greeter#greet(java.lang.String) parameter 0 name"),
+                output);
         assertTrue(output.contains("record-component  " + PKG + "Point.x"), output);
-        assertTrue(output.contains("method            " + PKG + "Service#first(java.util.List,java.lang.String[])"), output);
+        assertTrue(
+                output.contains("method            " + PKG + "Service#first(java.util.List,java.lang.String[])"),
+                output);
     }
 
     @Test
@@ -112,26 +138,35 @@ class JandexReaderTest {
     @Test
     void annotated_typeUse(QuarkusMainLauncher launcher) {
         LaunchResult result = launcher.launch("annotated", "NotNull", indexedJar.toString());
-        assertTrue(stdout(result).contains("type-use  java.lang.@NotNull String in " + PKG + "Service.names"),
+        assertTrue(
+                stdout(result).contains("type-use  java.lang.@NotNull String in " + PKG + "Service.names"),
                 stdout(result));
     }
 
     @Test
     void annotations_countsPerTarget(QuarkusMainLauncher launcher) {
         LaunchResult result = launcher.launch("annotations", "-f", "*Marker", indexedJar.toString());
-        assertTrue(stdout(result).matches(
-                "(?s).*8\\s+" + PKG.replace("$", "\\$") + "Marker\\s+class=1 field=2 method=2 parameter=2 record-component=1.*"),
+        assertTrue(
+                stdout(result)
+                        .matches("(?s).*8\\s+" + PKG.replace("$", "\\$")
+                                + "Marker\\s+class=1 field=2 method=2 parameter=2 record-component=1.*"),
                 stdout(result));
     }
 
     @Test
     void subclassesAndImplementors(QuarkusMainLauncher launcher) {
-        assertEquals(PKG + "SpecialService",
-                stdout(launcher.launch("subclasses", "Service", indexedJar.toString())).strip());
-        assertEquals(PKG + "Service",
-                stdout(launcher.launch("implementors", "--direct", "Greeter", indexedJar.toString())).strip());
-        assertEquals(PKG + "Service\n" + PKG + "SpecialService",
-                stdout(launcher.launch("implementors", "Greeter", indexedJar.toString())).strip());
+        assertEquals(
+                PKG + "SpecialService",
+                stdout(launcher.launch("subclasses", "Service", indexedJar.toString()))
+                        .strip());
+        assertEquals(
+                PKG + "Service",
+                stdout(launcher.launch("implementors", "--direct", "Greeter", indexedJar.toString()))
+                        .strip());
+        assertEquals(
+                PKG + "Service\n" + PKG + "SpecialService",
+                stdout(launcher.launch("implementors", "Greeter", indexedJar.toString()))
+                        .strip());
     }
 
     @Test
@@ -149,7 +184,8 @@ class JandexReaderTest {
     void multipleSources_skipMissingWithWarning(QuarkusMainLauncher launcher) {
         LaunchResult result = launcher.launch("subclasses", "Service", indexedJar.toString(), plainJar.toString());
         assertEquals(0, result.exitCode(), result.getErrorOutput());
-        assertTrue(result.getErrorOutput().contains("skipped 1 source(s) without a Jandex index"),
+        assertTrue(
+                result.getErrorOutput().contains("skipped 1 source(s) without a Jandex index"),
                 result.getErrorOutput());
     }
 
@@ -173,8 +209,7 @@ class JandexReaderTest {
 
     @Test
     void classPathOption(QuarkusMainLauncher launcher) {
-        LaunchResult result = launcher.launch("check", "--cp",
-                indexedJar + java.io.File.pathSeparator + plainJar);
+        LaunchResult result = launcher.launch("check", "--cp", indexedJar + java.io.File.pathSeparator + plainJar);
         assertTrue(stdout(result).contains("1 of 2 source(s)"), stdout(result));
     }
 

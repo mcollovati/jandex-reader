@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Marco Collovati
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.github.mcollovati.jandexreader.source;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -6,6 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.sun.net.httpserver.HttpServer;
+import io.github.mcollovati.jandexreader.ToolException;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -15,9 +32,6 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
-import com.sun.net.httpserver.HttpServer;
-import io.github.mcollovati.jandexreader.ToolException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -72,8 +86,10 @@ class MavenResolverTest {
         Map<String, String> files = Map.of(
                 "/com/acme/lib/maven-metadata.xml",
                 "<metadata><versioning><latest>2.0-SNAPSHOT</latest><release>1.2</release></versioning></metadata>",
-                "/com/acme/lib/1.2/lib-1.2.jar", "release jar",
-                "/com/acme/lib/2.0-SNAPSHOT/maven-metadata.xml", """
+                "/com/acme/lib/1.2/lib-1.2.jar",
+                "release jar",
+                "/com/acme/lib/2.0-SNAPSHOT/maven-metadata.xml",
+                """
                         <metadata><versioning>
                           <snapshot><timestamp>20260101.101010</timestamp><buildNumber>7</buildNumber></snapshot>
                           <snapshotVersions>
@@ -82,7 +98,8 @@ class MavenResolverTest {
                             <snapshotVersion><extension>jar</extension><value>2.0-20260101.101010-7</value></snapshotVersion>
                           </snapshotVersions>
                         </versioning></metadata>""",
-                "/com/acme/lib/2.0-SNAPSHOT/lib-2.0-20260101.101010-7.jar", "snapshot jar");
+                "/com/acme/lib/2.0-SNAPSHOT/lib-2.0-20260101.101010-7.jar",
+                "snapshot jar");
         HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
         server.createContext("/", exchange -> {
             String body = files.get(exchange.getRequestURI().getPath());

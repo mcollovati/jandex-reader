@@ -1,10 +1,19 @@
+/*
+ * Copyright 2026 Marco Collovati
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.github.mcollovati.jandexreader.commands;
-
-import java.io.PrintWriter;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.Callable;
 
 import io.github.mcollovati.jandexreader.ToolException;
 import io.github.mcollovati.jandexreader.source.IndexLoader;
@@ -13,6 +22,11 @@ import io.github.mcollovati.jandexreader.source.MavenResolver;
 import io.github.mcollovati.jandexreader.source.ResolvedSource;
 import io.github.mcollovati.jandexreader.source.SourceResolver;
 import io.github.mcollovati.jandexreader.support.Json;
+import java.io.PrintWriter;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Callable;
 import org.jboss.jandex.CompositeIndex;
 import org.jboss.jandex.IndexView;
 import picocli.CommandLine.Model.CommandSpec;
@@ -31,27 +45,41 @@ public abstract class IndexCommand implements Callable<Integer> {
     @Spec
     CommandSpec spec;
 
-    @Option(names = {"--cp", "--classpath"}, paramLabel = "<path>",
-            description = "Class path whose entries are added as sources (e.g. output of mvn dependency:build-classpath).")
+    @Option(
+            names = {"--cp", "--classpath"},
+            paramLabel = "<path>",
+            description =
+                    "Class path whose entries are added as sources (e.g. output of mvn dependency:build-classpath).")
     String classPath;
 
-    @Option(names = "--pom", paramLabel = "<pom.xml>",
+    @Option(
+            names = "--pom",
+            paramLabel = "<pom.xml>",
             description = "Adds the dependencies of a Maven project as sources (runs mvn dependency:build-classpath).")
     Path pom;
 
-    @Option(names = "--scope", defaultValue = "runtime", paramLabel = "<scope>",
-            description = "Dependency scope used with --pom (compile, runtime, test, provided, system). Default: ${DEFAULT-VALUE}.")
+    @Option(
+            names = "--scope",
+            defaultValue = "runtime",
+            paramLabel = "<scope>",
+            description =
+                    "Dependency scope used with --pom (compile, runtime, test, provided, system). Default: ${DEFAULT-VALUE}.")
     String scope;
 
-    @Option(names = {"-b", "--build-index"},
+    @Option(
+            names = {"-b", "--build-index"},
             description = "Index the classes of sources that have no Jandex index, instead of skipping them.")
     boolean buildIndex;
 
-    @Option(names = "--local-repo", paramLabel = "<dir>",
+    @Option(
+            names = "--local-repo",
+            paramLabel = "<dir>",
             description = "Maven local repository. Default: from ~/.m2/settings.xml or ~/.m2/repository.")
     Path localRepository;
 
-    @Option(names = {"-r", "--repo"}, paramLabel = "<url>",
+    @Option(
+            names = {"-r", "--repo"},
+            paramLabel = "<url>",
             description = "Remote Maven repository used to download artifacts (repeatable). Default: Maven Central.")
     List<String> repositories;
 
@@ -77,12 +105,13 @@ public abstract class IndexCommand implements Callable<Integer> {
         try {
             List<LoadedIndex> loaded = loadIndexes();
             if (skipMissingIndexes()) {
-                List<LoadedIndex> missing = loaded.stream().filter(l -> !l.hasIndex()).toList();
+                List<LoadedIndex> missing =
+                        loaded.stream().filter(l -> !l.hasIndex()).toList();
                 loaded = loaded.stream().filter(LoadedIndex::hasIndex).toList();
                 if (loaded.isEmpty()) {
                     String which = missing.size() == 1 ? missing.get(0).source().label() : "any of the sources";
-                    throw new ToolException("No Jandex index found in " + which
-                            + " (use --build-index to index the classes anyway)");
+                    throw new ToolException(
+                            "No Jandex index found in " + which + " (use --build-index to index the classes anyway)");
                 }
                 if (!missing.isEmpty()) {
                     err().println("warning: skipped " + missing.size() + " source(s) without a Jandex index"

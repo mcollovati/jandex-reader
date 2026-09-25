@@ -1,5 +1,21 @@
+/*
+ * Copyright 2026 Marco Collovati
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.github.mcollovati.jandexreader.source;
 
+import io.github.mcollovati.jandexreader.ToolException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -14,8 +30,6 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import io.github.mcollovati.jandexreader.ToolException;
-
 /**
  * Minimal Maven artifact resolver: looks into the local repository first, then downloads the single
  * artifact (no transitive dependencies) from the configured remote repositories into a cache directory.
@@ -25,7 +39,8 @@ public class MavenResolver {
     public static final String MAVEN_CENTRAL = "https://repo.maven.apache.org/maven2";
 
     private static final Pattern COORDINATES = Pattern.compile("[\\w.\\-]+(:[\\w.\\-]*){1,4}");
-    private static final Pattern SNAPSHOT_VERSION = Pattern.compile("<snapshotVersion>(.*?)</snapshotVersion>", Pattern.DOTALL);
+    private static final Pattern SNAPSHOT_VERSION =
+            Pattern.compile("<snapshotVersion>(.*?)</snapshotVersion>", Pattern.DOTALL);
 
     private final Path localRepository;
     private final Path cacheDirectory;
@@ -35,7 +50,9 @@ public class MavenResolver {
     public MavenResolver(Path localRepository, Path cacheDirectory, List<String> remoteRepositories, boolean offline) {
         this.localRepository = localRepository;
         this.cacheDirectory = cacheDirectory;
-        this.remoteRepositories = remoteRepositories.stream().map(MavenResolver::stripTrailingSlash).toList();
+        this.remoteRepositories = remoteRepositories.stream()
+                .map(MavenResolver::stripTrailingSlash)
+                .toList();
         this.offline = offline;
     }
 
@@ -52,9 +69,10 @@ public class MavenResolver {
     public ResolvedSource resolve(String coordinates) {
         Artifact requested = Artifact.parse(coordinates);
         String version = requested.version();
-        Artifact artifact = version == null || version.isEmpty() || "LATEST".equals(version) || "RELEASE".equals(version)
-                ? requested.withVersion(latestRelease(requested))
-                : requested;
+        Artifact artifact =
+                version == null || version.isEmpty() || "LATEST".equals(version) || "RELEASE".equals(version)
+                        ? requested.withVersion(latestRelease(requested))
+                        : requested;
         String label = artifact.version().equals(version) ? coordinates : coordinates + " (" + artifact.version() + ")";
         return new ResolvedSource(label, resolveArtifact(artifact));
     }
@@ -88,8 +106,8 @@ public class MavenResolver {
             }
             tried.add(url);
         }
-        throw new ToolException("Artifact " + artifact + " not found. Tried: " + localRepository + ", "
-                + String.join(", ", tried));
+        throw new ToolException(
+                "Artifact " + artifact + " not found. Tried: " + localRepository + ", " + String.join(", ", tried));
     }
 
     private String latestRelease(Artifact artifact) {
@@ -153,7 +171,8 @@ public class MavenResolver {
                     return false;
                 }
                 Files.createDirectories(target.getParent());
-                Path temp = Files.createTempFile(target.getParent(), target.getFileName().toString(), ".part");
+                Path temp = Files.createTempFile(
+                        target.getParent(), target.getFileName().toString(), ".part");
                 try (InputStream body = connection.getInputStream()) {
                     Files.copy(body, temp, StandardCopyOption.REPLACE_EXISTING);
                     Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -196,13 +215,15 @@ public class MavenResolver {
      * keeps java.xml out of the native executable.
      */
     static Optional<String> firstText(String xml, String tag) {
-        Matcher matcher = Pattern.compile("<" + tag + ">\\s*([^<]*?)\\s*</" + tag + ">").matcher(xml);
+        Matcher matcher =
+                Pattern.compile("<" + tag + ">\\s*([^<]*?)\\s*</" + tag + ">").matcher(xml);
         return matcher.find() && !matcher.group(1).isEmpty() ? Optional.of(matcher.group(1)) : Optional.empty();
     }
 
     // HttpURLConnection (java.base) instead of java.net.http keeps the native executable smaller
     private static HttpURLConnection open(String url) throws IOException {
-        HttpURLConnection connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
+        HttpURLConnection connection =
+                (HttpURLConnection) URI.create(url).toURL().openConnection();
         connection.setConnectTimeout(20_000);
         connection.setReadTimeout(60_000);
         connection.setInstanceFollowRedirects(true);
@@ -262,8 +283,9 @@ public class MavenResolver {
                 case 3 -> new Artifact(parts[0], parts[1], "jar", null, parts[2]);
                 case 4 -> new Artifact(parts[0], parts[1], parts[2], null, parts[3]);
                 case 5 -> new Artifact(parts[0], parts[1], parts[2], parts[3].isEmpty() ? null : parts[3], parts[4]);
-                default -> throw new ToolException("Invalid Maven coordinates: " + coordinates
-                        + " (expected groupId:artifactId[:extension[:classifier]]:version)");
+                default ->
+                    throw new ToolException("Invalid Maven coordinates: " + coordinates
+                            + " (expected groupId:artifactId[:extension[:classifier]]:version)");
             };
         }
 
@@ -285,8 +307,8 @@ public class MavenResolver {
 
         @Override
         public String toString() {
-            return groupId + ":" + artifactId + ":" + extension + (classifier == null ? "" : ":" + classifier)
-                    + ":" + version;
+            return groupId + ":" + artifactId + ":" + extension + (classifier == null ? "" : ":" + classifier) + ":"
+                    + version;
         }
     }
 }

@@ -1,21 +1,40 @@
+/*
+ * Copyright 2026 Marco Collovati
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.github.mcollovati.jandexreader.commands;
 
+import io.github.mcollovati.jandexreader.source.LoadedIndex;
+import io.github.mcollovati.jandexreader.support.Table;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import io.github.mcollovati.jandexreader.source.LoadedIndex;
-import io.github.mcollovati.jandexreader.support.Table;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
-@Command(name = "check", mixinStandardHelpOptions = true,
+@Command(
+        name = "check",
+        mixinStandardHelpOptions = true,
         description = "Tells whether each source contains a Jandex index. Exits with 1 if any source has none.")
 public class CheckCommand extends IndexCommand {
 
-    @Parameters(paramLabel = "<source>", arity = "0..*", description = "JAR, directory, .idx file or Maven coordinates.")
+    @Parameters(
+            paramLabel = "<source>",
+            arity = "0..*",
+            description = "JAR, directory, .idx file or Maven coordinates.")
     List<String> sources = new ArrayList<>();
 
     @Option(names = "--missing", description = "Only show sources without an index.")
@@ -33,7 +52,8 @@ public class CheckCommand extends IndexCommand {
 
     @Override
     protected int execute(List<LoadedIndex> indexes) throws Exception {
-        List<LoadedIndex> shown = indexes.stream().filter(l -> !onlyMissing || !l.hasIndex()).toList();
+        List<LoadedIndex> shown =
+                indexes.stream().filter(l -> !onlyMissing || !l.hasIndex()).toList();
         if (json) {
             List<Map<String, Object>> result = new ArrayList<>();
             for (LoadedIndex loaded : shown) {
@@ -52,11 +72,12 @@ public class CheckCommand extends IndexCommand {
         } else {
             Table table = new Table("SOURCE", "INDEX", "VERSION", "CLASSES", "LOCATION");
             for (LoadedIndex loaded : shown) {
-                table.row(loaded.source().label(), status(loaded), loaded.version(), classes(loaded),
-                        loaded.location());
+                table.row(
+                        loaded.source().label(), status(loaded), loaded.version(), classes(loaded), loaded.location());
             }
             table.print(out());
-            long withIndex = indexes.stream().filter(l -> l.hasIndex() && !l.generated()).count();
+            long withIndex =
+                    indexes.stream().filter(l -> l.hasIndex() && !l.generated()).count();
             out().println();
             out().println(withIndex + " of " + indexes.size() + " source(s) have a Jandex index");
         }
