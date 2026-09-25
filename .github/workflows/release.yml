@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, also used as tag name (e.g. 1.0.0 or 1.1.0-rc1, no 'v' prefix)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+# one release at a time; never cancel a release in progress
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  MAVEN_ARGS: -B -ntp
+
+jobs:
+  validate:
+    name: Validate version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+
+      - name: Check version format and that the tag does not exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: .github/scripts/check-release-version.sh "$VERSION"
+
+  build:
+    name: Build
+    needs: validate
+    uses: ./.github/workflows/build.yml
+    with:
+      version: ${{ inputs.version }}
+
+  release:
+    name: Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # full history for the changelog
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      # the build takes a while: make sure nobody created the tag in the meantime
+      - name: Check again that the tag does not exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: .github/scripts/check-release-version.sh "$VERSION"
+
+      # the JReleaser configuration in pom.xml expects the binaries in artifacts/
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Set release version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: mvn versions:set -DnewVersion="$VERSION"
+
+      # creates the tag on the built commit and the GitHub release
+      - name: Release with JReleaser
+        env:
+          JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: mvn jreleaser:full-release
+
+      - name: JReleaser output
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: jreleaser-output
+          path: |
+            target/jreleaser/trace.log
+            target/jreleaser/output.properties

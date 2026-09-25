@@ -157,12 +157,93 @@
                 </configuration>
             </plugin>
             <plugin>
-                <!-- run by the release workflow: mvn jreleaser:full-release -->
+                <!--
+                    Run by the release workflow (.github/workflows/release.yml): mvn jreleaser:full-release
+                    after setting the version from its input and downloading the binaries into artifacts/.
+                    Name, description, links, license, authors and inception year come from this POM.
+                    Reference: https://jreleaser.org/guide/latest/reference/index.html
+                -->
                 <groupId>org.jreleaser</groupId>
                 <artifactId>jreleaser-maven-plugin</artifactId>
                 <version>${jreleaser-plugin.version}</version>
                 <configuration>
-                    <configFile>${project.basedir}/jreleaser.yml</configFile>
+                    <jreleaser>
+                        <project>
+                            <longDescription>Command line tool that checks whether JAR files, directories or Maven artifacts contain a Jandex index (META-INF/jandex.idx) and lets you browse its content: classes, members, annotations and type hierarchy.</longDescription>
+                            <stereotype>CLI</stereotype>
+                            <languages>
+                                <java>
+                                    <version>21</version>
+                                </java>
+                            </languages>
+                        </project>
+                        <release>
+                            <github>
+                                <owner>mcollovati</owner>
+                                <name>jandex-reader</name>
+                                <!-- JReleaser creates the tag on the released commit; release.yml checks it does not exist yet -->
+                                <tagName>{{projectVersion}}</tagName>
+                                <releaseName>{{projectVersion}}</releaseName>
+                                <overwrite>false</overwrite>
+                                <prerelease>
+                                    <!-- versions with a suffix, such as 1.1.0-rc1 -->
+                                    <pattern>.*-.*</pattern>
+                                </prerelease>
+                                <changelog>
+                                    <formatted>ALWAYS</formatted>
+                                    <skipMergeCommits>true</skipMergeCommits>
+                                    <contributors>
+                                        <enabled>false</enabled>
+                                    </contributors>
+                                    <hide>
+                                        <uncategorized>false</uncategorized>
+                                    </hide>
+                                </changelog>
+                            </github>
+                        </release>
+                        <checksum>
+                            <individual>false</individual>
+                        </checksum>
+                        <distributions>
+                            <jandex-reader>
+                                <type>BINARY</type>
+                                <executable>
+                                    <name>jandex-reader</name>
+                                    <windowsExtension>exe</windowsExtension>
+                                </executable>
+                                <artifacts>
+                                    <artifact>
+                                        <path>artifacts/jandex-reader-linux-amd64.tar.gz</path>
+                                        <platform>linux-x86_64</platform>
+                                    </artifact>
+                                    <artifact>
+                                        <path>artifacts/jandex-reader-linux-arm64.tar.gz</path>
+                                        <platform>linux-aarch_64</platform>
+                                    </artifact>
+                                    <artifact>
+                                        <path>artifacts/jandex-reader-macos-amd64.tar.gz</path>
+                                        <platform>osx-x86_64</platform>
+                                    </artifact>
+                                    <artifact>
+                                        <path>artifacts/jandex-reader-macos-arm64.tar.gz</path>
+                                        <platform>osx-aarch_64</platform>
+                                    </artifact>
+                                    <artifact>
+                                        <path>artifacts/jandex-reader-windows-amd64.zip</path>
+                                        <platform>windows-x86_64</platform>
+                                    </artifact>
+                                </artifacts>
+                            </jandex-reader>
+                        </distributions>
+                        <files>
+                            <artifacts>
+                                <!-- JVM uber-jar, runs with java -jar on Java 21+ -->
+                                <artifact>
+                                    <path>artifacts/jandex-reader.jar</path>
+                                </artifact>
+                            </artifacts>
+                        </files>
+                    </jreleaser>
                 </configuration>
             </plugin>
         </plugins>

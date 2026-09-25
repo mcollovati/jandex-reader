@@ -3,9 +3,16 @@ name: Build
 on:
   push:
     branches: [main]
-    tags: ['v*']
   pull_request:
+  # manual run: also builds and uploads the native binaries, without releasing
   workflow_dispatch:
+  # called by release.yml with the version to build
+  workflow_call:
+    inputs:
+      version:
+        description: Version to set in pom.xml before building
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -30,22 +37,24 @@ jobs:
           java-version: 21
           cache: maven
 
-      - name: Set version from tag
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: mvn versions:set -DnewVersion="${GITHUB_REF_NAME#v}"
+      - name: Set release version
+        if: inputs.version != ''
+        env:
+          VERSION: ${{ inputs.version }}
+        run: mvn versions:set -DnewVersion="$VERSION"
 
       - name: Build and test
         run: mvn verify
 
-      # Binaries are only published for releases (v* tags) and manual runs
+      # Binaries are only uploaded for manual runs, releases included
       - name: Package
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch'
         run: |
           cp target/*-runner.jar jandex-reader.jar
           java -jar jandex-reader.jar --version
 
       - uses: actions/upload-artifact@v7
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch'
         with:
           name: jandex-reader-jvm
           path: jandex-reader.jar
@@ -53,7 +62,8 @@ jobs:
 
   native:
     name: Native ${{ matrix.platform }}
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    # manual runs, releases included (a called workflow sees the caller's event)
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -84,10 +94,12 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cache: maven
 
-      - name: Set version from tag
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Set release version
+        if: inputs.version != ''
         shell: bash
-        run: mvn versions:set -DnewVersion="${GITHUB_REF_NAME#v}"
+        env:
+          VERSION: ${{ inputs.version }}
+        run: mvn versions:set -DnewVersion="$VERSION"
 
       - name: Build native executable and run integration tests
         shell: bash
@@ -117,45 +129,3 @@ jobs:
           name: jandex-reader-${{ matrix.platform }}
           path: ${{ steps.package.outputs.archive }}
           if-no-files-found: error
-
-  release:
-    name: Release
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [jvm, native]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          # full history for the changelog
-          fetch-depth: 0
-
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: 21
-          cache: maven
-
-      # jreleaser.yml expects the binaries in artifacts/
-      - uses: actions/download-artifact@v8
-        with:
-          path: artifacts
-          merge-multiple: true
-
-      - name: Set version from tag
-        run: mvn versions:set -DnewVersion="${GITHUB_REF_NAME#v}"
-
-      - name: Release with JReleaser
-        env:
-          JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mvn jreleaser:full-release
-
-      - name: JReleaser output
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: jreleaser-output
-          path: |
-            target/jreleaser/trace.log
-            target/jreleaser/output.properties

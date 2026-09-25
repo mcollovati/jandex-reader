@@ -28,13 +28,24 @@ curl -sL https://github.com/mcollovati/jandex-reader/releases/latest/download/ja
 
 The macOS binaries aren't signed. If Gatekeeper blocks one, run `xattr -d com.apple.quarantine jandex-reader`.
 
-Pushes and pull requests only run the JVM build and tests. Binaries are built when a `v*` tag is
-pushed (e.g. `git tag v1.0.0 && git push origin v1.0.0`). The workflow then sets the Maven version
-from the tag and publishes the release with [JReleaser](https://jreleaser.org)
-(`mvn jreleaser:full-release`, configured in `jreleaser.yml`), including a changelog of the commits
-since the previous tag. Tags with a suffix such as `v1.1.0-rc1` are marked as pre-releases. To get
-binaries without releasing, start the *Build* workflow manually from the Actions tab and download them
-from the run's artifacts.
+Pushes and pull requests only run the JVM build and tests. To get binaries without releasing, start
+the *Build* workflow manually from the Actions tab and download them from the run's artifacts.
+
+## Release
+
+Start the *Release* workflow from the Actions tab, or run
+`gh workflow run release.yml -f version=1.0.0`, with the version to release. The version is also the
+tag name, with no `v` prefix. The workflow:
+
+1. checks the version format (`1.0.0`, or with a suffix such as `1.1.0-rc1`; no SNAPSHOT) and fails if
+   the tag already exists
+2. sets the version in `pom.xml`, then builds and tests the JVM jar and the native executables
+3. checks the tag again and publishes the release with [JReleaser](https://jreleaser.org)
+   (`mvn jreleaser:full-release`, configured in the `jreleaser-maven-plugin` section of `pom.xml`).
+   JReleaser creates the tag on the built commit and writes a changelog of the commits since the
+   previous tag. Versions with a suffix are marked as pre-releases.
+
+The version in `pom.xml` on `main` stays a `-SNAPSHOT`; the release sets its version only in the build.
 
 ## Build
 
