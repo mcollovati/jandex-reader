@@ -67,6 +67,10 @@ mvn package -Dnative -Dquarkus.native.container-build=true
 
 `mvn verify -Dnative` also runs the test suite against the native executable.
 
+The code is formatted with [Palantir Java Format](https://github.com/palantir/palantir-java-format)
+through [Spotless](https://github.com/diffplug/spotless), which also checks the license header of every source file.
+The build fails on formatting or header violations; run `mvn spotless:apply` to fix them.
+
 ## Sources
 
 Every command accepts one or more sources:

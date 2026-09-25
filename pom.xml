@@ -45,6 +45,8 @@
         <skipITs>true</skipITs>
         <jreleaser-plugin.version>1.26.0</jreleaser-plugin.version>
         <versions-plugin.version>2.22.0</versions-plugin.version>
+        <spotless-plugin.version>3.10.2</spotless-plugin.version>
+        <palantir-java-format.version>2.99.0</palantir-java-format.version>
     </properties>
 
     <dependencyManagement>
@@ -148,6 +150,48 @@
                         <native.image.path>${project.build.directory}/${project.build.finalName}-runner</native.image.path>
                         <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
                     </systemPropertyVariables>
+                </configuration>
+            </plugin>
+            <plugin>
+                <!-- the check goal fails the build on violations; fix them with mvn spotless:apply -->
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <java>
+                        <includes>
+                            <include>src/main/java/**/*.java</include>
+                            <include>src/test/java/**/*.java</include>
+                        </includes>
+                        <palantirJavaFormat>
+                            <version>${palantir-java-format.version}</version>
+                        </palantirJavaFormat>
+                        <removeUnusedImports/>
+                        <!-- $YEAR is the current year for new files; existing years are kept -->
+                        <licenseHeader>
+                            <file>${project.basedir}/config/spotless/license-header-java.txt</file>
+                        </licenseHeader>
+                    </java>
+                    <formats>
+                        <format>
+                            <includes>
+                                <include>.github/scripts/*.sh</include>
+                            </includes>
+                            <licenseHeader>
+                                <file>${project.basedir}/config/spotless/license-header-shell.txt</file>
+                                <skipLinesMatching>^#!.+?$</skipLinesMatching>
+                                <!-- the header ends at the first line that is not one of its own lines -->
+                                <delimiter>(?!$|# (Copyright|Licensed|you may|You may|    http|Unless|distributed|WITHOUT|See the|limitations)|#$)</delimiter>
+                            </licenseHeader>
+                        </format>
+                    </formats>
                 </configuration>
             </plugin>
             <plugin>
