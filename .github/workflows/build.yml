@@ -1,0 +1,148 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  MAVEN_ARGS: -B -ntp
+
+jobs:
+  jvm:
+    name: JVM build and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Use tag as application version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: echo "VERSION_ARGS=-Dquarkus.application.version=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Build and test
+        run: mvn verify $VERSION_ARGS
+
+      # Binaries are only published for releases (v* tags) and manual runs
+      - name: Package
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        run: |
+          cp target/*-runner.jar jandex-reader.jar
+          java -jar jandex-reader.jar --version
+
+      - uses: actions/upload-artifact@v7
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        with:
+          name: jandex-reader-jvm
+          path: jandex-reader.jar
+          if-no-files-found: error
+
+  native:
+    name: Native ${{ matrix.platform }}
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux binaries are built in the Mandrel builder container (UBI 9, glibc 2.34),
+          # so they also run on distributions older than the runner.
+          - platform: linux-amd64
+            os: ubuntu-latest
+            build-args: -Dquarkus.native.container-build=true
+          - platform: linux-arm64
+            os: ubuntu-24.04-arm
+            build-args: -Dquarkus.native.container-build=true
+          - platform: macos-arm64
+            os: macos-latest
+          - platform: macos-amd64
+            os: macos-15-intel
+          - platform: windows-amd64
+            os: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Tests and, outside of Linux, the native-image compiler
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          distribution: graalvm-community
+          java-version: 25
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: maven
+
+      - name: Use tag as application version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: echo "VERSION_ARGS=-Dquarkus.application.version=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Build native executable and run integration tests
+        shell: bash
+        run: mvn verify -Dnative ${{ matrix.build-args }} $VERSION_ARGS
+
+      - name: Package
+        id: package
+        shell: bash
+        run: |
+          mkdir dist
+          cp LICENSE README.md dist/
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            cp target/*-runner.exe dist/jandex-reader.exe
+            dist/jandex-reader.exe --version
+            archive="jandex-reader-${{ matrix.platform }}.zip"
+            (cd dist && 7z a "../$archive" jandex-reader.exe LICENSE README.md)
+          else
+            cp target/*-runner dist/jandex-reader
+            dist/jandex-reader --version
+            archive="jandex-reader-${{ matrix.platform }}.tar.gz"
+            tar -czf "$archive" -C dist jandex-reader LICENSE README.md
+          fi
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: jandex-reader-${{ matrix.platform }}
+          path: ${{ steps.package.outputs.archive }}
+          if-no-files-found: error
+
+  release:
+    name: GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [jvm, native]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then prerelease="--prerelease"; fi
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            $prerelease

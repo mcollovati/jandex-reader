@@ -1,5 +1,7 @@
 # jandex-reader
 
+[![Build](https://github.com/mcollovati/jandex-reader/actions/workflows/build.yml/badge.svg)](https://github.com/mcollovati/jandex-reader/actions/workflows/build.yml)
+
 Command line tool that checks whether JAR files, directories or Maven artifacts contain a
 [Jandex](https://github.com/smallrye/jandex) index (`META-INF/jandex.idx`) and lets you browse its
 content: classes, members, annotations and type hierarchy.
@@ -11,6 +13,25 @@ Built with Quarkus + Picocli, runs on the JVM or as a GraalVM/Mandrel native exe
 Jandex ships a small CLI (`java -jar jandex.jar -d file.idx`), but it only creates indexes or dumps a
 standalone `.idx` file in one fixed format. It can't query an index, doesn't look inside JARs, and knows
 nothing about Maven. This tool fills that gap.
+
+## Download
+
+Each [release](https://github.com/mcollovati/jandex-reader/releases) has native executables for
+Linux (amd64, arm64), macOS (arm64, amd64) and Windows (amd64), plus a JVM uber-jar (Java 21+) and
+`SHA256SUMS`:
+
+```shell
+curl -sL https://github.com/mcollovati/jandex-reader/releases/latest/download/jandex-reader-linux-amd64.tar.gz \
+  | tar xz jandex-reader
+./jandex-reader --version
+```
+
+The macOS binaries aren't signed. If Gatekeeper blocks one, run `xattr -d com.apple.quarantine jandex-reader`.
+
+Pushes and pull requests only run the JVM build and tests. Binaries are built when a `v*` tag is
+pushed (e.g. `git tag v1.0.0 && git push origin v1.0.0`), which publishes a release. Tags with a suffix
+such as `v1.1.0-rc1` are marked as pre-releases. To get binaries without releasing, start the *Build*
+workflow manually from the Actions tab and download them from the run's artifacts.
 
 ## Build
 
