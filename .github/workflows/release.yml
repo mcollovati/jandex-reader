@@ -74,8 +74,14 @@ jobs:
       # the JReleaser configuration in pom.xml expects the binaries in artifacts/
       - uses: actions/download-artifact@v8
         with:
+          pattern: jandex-reader*
           path: artifacts
           merge-multiple: true
+          # artifacts are uploaded as-is; without this the Windows .zip would be extracted
+          skip-decompress: true
+
+      - name: List release files
+        run: ls -l artifacts
 
       - name: Set release version
         env:
